@@ -1725,8 +1725,28 @@ func getFileOwnership(file ign3types.File) (int, int, error) {
 }
 
 func (dn *Daemon) atomicallyWriteSSHKey(keys string) error {
-	authKeyPath := filepath.Join(coreUserSSHPath, "authorized_keys")
+	var authKeyPath string
 
+	// If we are using FCOS then use /home/core/.ssh/authorized_keys.d/ignition
+	if dn.os.IsFCOS() {
+		authKeyPath = filepath.Join(coreUserSSHPath, "authorized_keys.d/authorized_keys_slice")
+		authKeyPathIgnite := filepath.Join(coreUserSSHPath, "authorized_keys.d/ignition")
+		authKeyPathDefault := filepath.Join(coreUserSSHPath, "authorized_keys")
+
+		//First time rename authorized_keys.d/ignition to authorized_keys.d/authorized_keys_slice
+		if _, err := os.Stat(authKeyPathIgnite); err == nil {
+			glog.Infof("Removing Default SSHKeys at %q", authKeyPathIgnite)
+			os.Remove(authKeyPathIgnite)
+		}
+		// Remove .ssh/authorized_keys if it exists
+		if _, err := os.Stat(authKeyPathDefault); err == nil {
+				glog.Infof("Removing Default SSHKeys at %q", authKeyPathDefault)
+				os.Remove(authKeyPathDefault)
+		}
+	// If we are using RHCOS then use /home/core/.ssh/authorized_keys
+	} else {
+		authKeyPath = filepath.Join(coreUserSSHPath, "authorized_keys")
+	}
 	// Keys should only be written to "/home/core/.ssh"
 	// Once Users are supported fully this should be writing to PasswdUser.HomeDir
 	glog.Infof("Writing SSHKeys at %q", authKeyPath)
