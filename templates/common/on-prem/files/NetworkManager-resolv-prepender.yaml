@@ -38,9 +38,14 @@ contents:
     EOF
         # Ensure resolv.conf exists and contains nameservers before we try to run podman
         if [[ ! -e /etc/resolv.conf ]] || ! grep -q nameserver /etc/resolv.conf; then
-            cp /var/run/NetworkManager/resolv.conf /etc/resolv.conf
+            if systemctl -q is-enabled systemd-resolved; then
+                >&2 echo  "NM resolv-prepender: /etc/resolv.conf missing. creating link to /run/systemd/resolve/stub-resolv.conf"
+                cd /etc/ && ln -s ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+            else
+                >&2 echo  "NM resolv-prepender: /etc/resolv.conf missing.  Copying from /var/run/NetworkManager/resolv.conf"
+                cp /var/run/NetworkManager/resolv.conf /etc/resolv.conf
+            fi
         fi
-
 
         NAMESERVER_IP=$(/usr/bin/podman run --rm \
             --authfile /var/lib/kubelet/config.json \
